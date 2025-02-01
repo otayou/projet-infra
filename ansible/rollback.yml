@@ -1,0 +1,48 @@
+---
+- hosts: spark-master:spark-worker
+  become: true
+  tasks:
+    - name: Stop Spark Master
+      shell: "/opt/spark/sbin/stop-master.sh || true"
+      ignore_errors: yes
+      when: "'spark-master' in group_names"
+
+    - name: Stop Spark Worker
+      shell: "/opt/spark/sbin/stop-worker.sh || true"
+      ignore_errors: yes
+      when: "'spark-worker' in group_names"
+
+    - name: Remove Spark installation
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - /opt/spark
+        - /opt/spark-3.3.2-bin-hadoop3
+        - /tmp/spark-3.3.2-bin-hadoop3.tgz
+
+    - name: Remove Java installation
+      apt:
+        name: default-jdk
+        state: absent
+      ignore_errors: yes
+
+    - name: Remove Spark configuration files
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - /opt/spark/conf/spark-env.sh
+        - /opt/spark/conf/spark-defaults.conf
+
+    - name: Remove Spark path from .bashrc
+      lineinfile:
+        path: "/home/{{ ansible_user }}/.bashrc"
+        regexp: '^export PATH=.*\/opt\/spark\/bin$'
+        state: absent
+
+    - name: Reload .bashrc
+      shell: "source /home/{{ ansible_user }}/.bashrc"
+      args:
+        executable: /bin/bash
+

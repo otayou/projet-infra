@@ -1,0 +1,8 @@
+handlers:
+  - name: restart spark worker
+    shell: |
+      /opt/spark/sbin/stop-worker.sh || true
+      /opt/spark/sbin/start-worker.sh spark://{{ hostvars[groups['spark-master'][0]].ansible_host }}:7077
+    args:
+      executable: /bin/bash
+

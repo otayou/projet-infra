@@ -1,0 +1,53 @@
+---
+- hosts: spark-master
+  become: true
+  roles:
+    - spark
+  tasks:
+    - name: Ensure Spark Master is running
+      shell: |
+        if ! pgrep -f "org.apache.spark.deploy.master.Master"; then
+          /opt/spark/sbin/start-master.sh
+        fi
+      args:
+        chdir: "/opt/spark"
+      become: true
+
+- hosts: spark-worker
+  become: true
+  roles:
+    - spark
+  tasks:
+    - name: Ensure apt is not locked
+      shell: |
+        while fuser /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* >/dev/null 2>&1; do
+          sleep 2
+        done
+      become: true
+
+    - name: Ensure Spark Worker is running
+      shell: |
+        if ! pgrep -f "org.apache.spark.deploy.worker.Worker"; then
+          /opt/spark/sbin/start-worker.sh spark://{{ hostvars[groups['spark-master'][0]].ansible_host }}:7077
+        fi
+      args:
+        chdir: "/opt/spark"
+      become: true
+
+    - name: Configure Spark Worker memory
+      lineinfile:
+        path: /opt/spark/conf/spark-env.sh
+        line: "SPARK_WORKER_MEMORY=4g"
+        state: present
+        create: yes
+      notify:
+        - restart spark worker
+
+  handlers:
+    - name: restart spark worker
+      shell: |
+        /opt/spark/sbin/stop-worker.sh || true
+        /opt/spark/sbin/start-worker.sh spark://{{ hostvars[groups['spark-master'][0]].ansible_host }}:7077
+      args:
+        executable: /bin/bash
+
