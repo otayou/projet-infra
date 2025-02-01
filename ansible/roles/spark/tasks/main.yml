@@ -1,0 +1,69 @@
+---
+- name: Install Java
+  apt:
+    name: default-jdk
+    update_cache: yes
+    state: present
+  become: true
+
+- name: Check if Spark tarball exists
+  stat:
+    path: "/tmp/spark-3.3.2-bin-hadoop3.tgz"
+  register: spark_tarball
+
+- name: Download Spark tarball
+  get_url:
+    url: "https://archive.apache.org/dist/spark/spark-3.3.2/spark-3.3.2-bin-hadoop3.tgz"
+    dest: "/tmp/spark-3.3.2-bin-hadoop3.tgz"
+    mode: "0644"
+  when: not spark_tarball.stat.exists
+
+- name: Extract Spark
+  become: true
+  ansible.builtin.unarchive:
+    src: "/tmp/spark-3.3.2-bin-hadoop3.tgz"
+    dest: "/opt"
+    remote_src: true
+
+- name: Ensure Spark directory permissions
+  become: true
+  file:
+    path: "/opt/spark-3.3.2-bin-hadoop3"
+    state: directory
+    mode: "0755"
+
+- name: Symlink Spark to /opt/spark
+  become: true
+  file:
+    src: "/opt/spark-3.3.2-bin-hadoop3"
+    dest: "/opt/spark"
+    state: link
+    force: true
+
+- name: Copy spark-env.sh
+  become: true
+  template:
+    src: "spark-env.sh.j2"
+    dest: "/opt/spark/conf/spark-env.sh"
+    mode: "0755"
+
+- name: Copy spark-defaults.conf
+  become: true
+  template:
+    src: "spark-defaults.conf.j2"
+    dest: "/opt/spark/conf/spark-defaults.conf"
+    mode: "0644"
+
+- name: Add /opt/spark/bin to PATH for the ubuntu user
+  lineinfile:
+    path: "/home/{{ ansible_user }}/.bashrc"
+    line: 'export PATH=$PATH:/opt/spark/bin'
+    state: present
+    create: yes
+
+- name: Source .bashrc for the current session
+  shell: "source /home/{{ ansible_user }}/.bashrc"
+  args:
+    executable: /bin/bash
+  become: true
+
