@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# Set the local IP address of the current node (master or worker):
+SPARK_LOCAL_IP={{ ansible_host }}
+
+# Configure the Master or Worker-specific settings
+{% if 'spark-master' in group_names %}
+# This node is the Spark Master
+SPARK_MASTER_HOST={{ ansible_host }}
+SPARK_WORKER_INSTANCES=0  # No workers on the master node
+{% else %}
+# This node is a Spark Worker
+SPARK_MASTER_HOST={{ hostvars[groups['spark-master'][0]].ansible_host }}
+SPARK_WORKER_MEMORY={{ spark_worker_memory | default('4g') }}  # Worker memory allocation
+SPARK_WORKER_CORES={{ spark_worker_cores | default(1) }}       # Worker cores allocation
+{% endif %}
+

@@ -1,0 +1,5 @@
+# Point workers at the master’s spark:// URL.
+spark.master spark://{{ hostvars[groups['spark-master'][0]].ansible_host }}:7077
+
+# park.executor.memory 1g
+
